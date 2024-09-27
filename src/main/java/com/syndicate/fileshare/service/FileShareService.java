@@ -206,6 +206,11 @@ public class FileShareService {
     }
 
     public void renameFile(String currUsername, String fileId, String newFileName) throws Exception {
+        // duplicate check
+        Optional<FileData> nameCheck = fileRepository.findByFileName(newFileName);
+        if (nameCheck.isPresent()) {
+            throw new Exception("Folder Name already exists!!!");
+        }
         Optional<FileData> tempFile = fileRepository.findById(fileId);
         if (!tempFile.isPresent()) {
             throw new Exception("File not Found!!!");
@@ -241,6 +246,11 @@ public class FileShareService {
     }
 
     public void createFolder(String currUsername, String folderName) throws Exception {
+        // duplicate check
+        Optional<FolderData> nameCheck = folderRepository.findByFolderName(folderName);
+        if (nameCheck.isPresent()) {
+            throw new Exception("Folder Name already exists!!!");
+        }
         Optional<MyUser> tempManager = userRepository.findByUsername(currUsername);
         if (!tempManager.isPresent()) {
             throw new Exception("User not found!!!");
@@ -265,6 +275,11 @@ public class FileShareService {
     }
 
     public void renameFolder(String currUsername, String folderId, String newFolderName) throws Exception {
+        // duplicate check
+        Optional<FolderData> nameCheck = folderRepository.findByFolderName(newFolderName);
+        if (nameCheck.isPresent()) {
+            throw new Exception("Folder Name already exists!!!");
+        }
         Optional<MyUser> tempManager = userRepository.findByUsername(currUsername);
         if (!tempManager.isPresent()) {
             throw new Exception("User not found!!!");

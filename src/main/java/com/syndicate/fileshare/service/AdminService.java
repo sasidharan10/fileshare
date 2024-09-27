@@ -43,15 +43,14 @@ public class AdminService {
 
     public List<FileData> getFilesByFolderAdmin(String folderId) throws Exception {
         Optional<FolderData> tempFolder = folderRepository.findById(folderId);
-        if(!tempFolder.isPresent())
+        if (!tempFolder.isPresent())
             throw new Exception("Folder not found in the DB!!!");
         List<FileData> fileDataList = new ArrayList<>();
-        if(tempFolder.get().getFilesList().isEmpty())
+        if (tempFolder.get().getFilesList().isEmpty())
             return fileDataList;
-        for (String fileId:tempFolder.get().getFilesList())
-        {
+        for (String fileId : tempFolder.get().getFilesList()) {
             Optional<FileData> tempFile = fileRepository.findById(fileId);
-            if(!tempFile.isPresent())
+            if (!tempFile.isPresent())
                 continue;
             fileDataList.add(tempFile.get());
         }
@@ -60,13 +59,13 @@ public class AdminService {
 
     public byte[] downloadFileAdmin(String fileId) throws Exception {
         Optional<FileData> tempFile = fileRepository.findById(fileId);
-        if(!tempFile.isPresent()) {
+        if (!tempFile.isPresent()) {
             throw new Exception("File not Found!!!");
         }
         FileData fileObj = tempFile.get();
         // get folder data
         Optional<FolderData> tempFolder = folderRepository.findById(fileObj.getFolderId());
-        if(!tempFolder.isPresent()) {
+        if (!tempFolder.isPresent()) {
             throw new Exception("Folder not found in the DB!!!");
         }
         FolderData folderObj = tempFolder.get();
@@ -79,14 +78,14 @@ public class AdminService {
     public Object uploadFileAdmin(String currUsername, String folderId, MultipartFile file) throws Exception {
         // check if folder exists
         Optional<FolderData> tempFolder = folderRepository.findById(folderId);
-        if(!tempFolder.isPresent()) {
+        if (!tempFolder.isPresent()) {
             throw new Exception("Folder not found in the DB!!!");
         }
         FolderData folderObj = tempFolder.get();
 
         // check if file name already exists
         Optional<FileData> tempFile = fileRepository.findByFileName(file.getOriginalFilename());
-        if(tempFile.isPresent()) {
+        if (tempFile.isPresent()) {
             throw new Exception("File name already exists!!!");
         }
 
@@ -98,7 +97,7 @@ public class AdminService {
         newFile.setFolderId(folderObj.getId());
         newFile.setCreator(currUsername);
         fileRepository.save(newFile);   // save fileData to DB
-        LOGGER.info("New file Info: "+newFile.toString());
+        LOGGER.info("New file Info: " + newFile.toString());
         // add to fileList
         Set<String> files = folderObj.getFilesList();
         if (files == null) {
@@ -112,14 +111,14 @@ public class AdminService {
 
     public String deleteFileAdmin(String fileId) throws Exception {
         Optional<FileData> tempFile = fileRepository.findById(fileId);
-        if(!tempFile.isPresent()) {
+        if (!tempFile.isPresent()) {
             throw new Exception("File not Found!!!");
         }
         FileData fileObj = tempFile.get();
 
         // get folder details
         Optional<FolderData> tempFolder = folderRepository.findById(fileObj.getFolderId());
-        if(!tempFolder.isPresent()) {
+        if (!tempFolder.isPresent()) {
             throw new Exception("Folder not found in the DB!!!");
         }
         FolderData folderObj = tempFolder.get();
@@ -143,15 +142,19 @@ public class AdminService {
     }
 
     public void renameFileAdmin(String fileId, String newFileName) throws Exception {
+        Optional<FileData> nameCheck = fileRepository.findByFileName(newFileName);
+        if (nameCheck.isPresent()) {
+            throw new Exception("File Name already exists!!!");
+        }
         Optional<FileData> tempFile = fileRepository.findById(fileId);
-        if(!tempFile.isPresent()) {
+        if (!tempFile.isPresent()) {
             throw new Exception("File not Found!!!");
         }
         FileData fileObj = tempFile.get();
 
         // get folder details
         Optional<FolderData> tempFolder = folderRepository.findById(fileObj.getFolderId());
-        if(!tempFolder.isPresent()) {
+        if (!tempFolder.isPresent()) {
             throw new Exception("Folder not found in the DB!!!");
         }
         FolderData folderObj = tempFolder.get();
@@ -166,14 +169,17 @@ public class AdminService {
     }
 
     public void createFolderAdmin(String managerId, String folderName) throws Exception {
+        Optional<FolderData> nameCheck = folderRepository.findByFolderName(folderName);
+        if (nameCheck.isPresent()) {
+            throw new Exception("Folder Name already exists!!!");
+        }
         Optional<MyUser> tempManager = userRepository.findById(managerId);
         if (!tempManager.isPresent()) {
             throw new Exception("User not found!!!");
         }
         MyUser managerObj = tempManager.get();
 
-        if(!managerObj.getRole().equals("MANAGER"))
-        {
+        if (!managerObj.getRole().equals("MANAGER")) {
             throw new Exception("The given user is not a Manager!!!");
         }
         // create folder in s3
@@ -194,9 +200,14 @@ public class AdminService {
     }
 
     public void renameFolderAdmin(String folderId, String newFolderName) throws Exception {
+        // duplicate check
+        Optional<FolderData> nameCheck = folderRepository.findByFolderName(newFolderName);
+        if (nameCheck.isPresent()) {
+            throw new Exception("Folder Name already exists!!!");
+        }
         // get folder details
         Optional<FolderData> tempFolder = folderRepository.findById(folderId);
-        if(!tempFolder.isPresent()) {
+        if (!tempFolder.isPresent()) {
             throw new Exception("Folder not found in the DB!!!");
         }
         FolderData folderObj = tempFolder.get();
@@ -213,7 +224,7 @@ public class AdminService {
     public void deleteFolderAdmin(String folderId) throws Exception {
         // get folder details
         Optional<FolderData> tempFolder = folderRepository.findById(folderId);
-        if(!tempFolder.isPresent()) {
+        if (!tempFolder.isPresent()) {
             throw new Exception("Folder not found in the DB!!!");
         }
         FolderData folderObj = tempFolder.get();
@@ -221,10 +232,8 @@ public class AdminService {
 
         // remove folder ids from all users.
         List<MyUser> userList = userRepository.findAll();
-        for (MyUser userObj: userList)
-        {
-            if(userObj.getFolderList().contains(folderId))
-            {
+        for (MyUser userObj : userList) {
+            if (userObj.getFolderList().contains(folderId)) {
                 Set<String> newFolderList = userObj.getFolderList();
                 newFolderList.remove(folderId);
                 userObj.setFolderList(newFolderList);
@@ -234,8 +243,7 @@ public class AdminService {
 
         // remove all files from DB
         Set<String> filesList = folderObj.getFilesList();
-        for (String fileId: filesList)
-        {
+        for (String fileId : filesList) {
             fileRepository.deleteById(fileId);
         }
 
