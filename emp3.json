@@ -1,0 +1,21 @@
+[{
+  "_id": {
+    "$oid": "66f1d912e06faa081a88390a"
+  },
+  "username": "john",
+  "role": "ROLE_DESIGNER"
+},
+{
+  "_id": {
+    "$oid": "66f1d912e06faa081a88390b"
+  },
+  "username": "jane",
+  "role": "ROLE_MANAGER"
+},
+{
+  "_id": {
+    "$oid": "66f1d912e06faa081a88390c"
+  },
+  "username": "tom",
+  "role": "ROLE_ADMIN"
+}]
