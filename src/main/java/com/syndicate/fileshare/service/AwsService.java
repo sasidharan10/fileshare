@@ -28,15 +28,6 @@ public class AwsService {
     @Autowired
     private AmazonS3 s3Client;
 
-    @Autowired
-    private UserRepository userRepository;
-
-    @Autowired
-    private FileRepository fileRepository;
-
-    @Autowired
-    private FolderRepository folderRepository;
-
     private final Logger LOGGER = LoggerFactory.getLogger(AwsService.class);
 
     public void uploadFileInS3(String currUsername, String targetFolder, MultipartFile file) throws Exception {

@@ -37,6 +37,11 @@ public class RestController {
 
     private final Logger LOGGER = LoggerFactory.getLogger(RestController.class);
 
+    @GetMapping("/")
+    public String homePage() {
+        return "File Share Application";
+    }
+
     @PreAuthorize("hasAnyRole('ROLE_MANAGER', 'ROLE_DESIGNER')")
     @GetMapping("/folder/myFolders")
     public ResponseEntity<?> viewMyFolders() {
@@ -45,7 +50,7 @@ public class RestController {
             List<FolderData> folderDataList = fileShareservice.getMyFolders(currUsername);
             return new ResponseEntity<>(folderDataList, HttpStatus.OK);
         } catch (Exception e) {
-            return new ResponseEntity(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+            return new ResponseEntity(e.getMessage(), HttpStatus.BAD_REQUEST);
         }
     }
 
@@ -188,10 +193,5 @@ public class RestController {
         } catch (Exception e) {
             return new ResponseEntity(e.getMessage(), HttpStatus.BAD_REQUEST);
         }
-    }
-
-    @GetMapping("/")
-    public String homePage() {
-        return "File Share Application";
     }
 }
