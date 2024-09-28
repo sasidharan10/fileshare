@@ -8,6 +8,9 @@ import com.syndicate.fileshare.repository.FolderRepository;
 import com.syndicate.fileshare.repository.UserRepository;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import org.slf4j.Logger;
@@ -28,6 +31,9 @@ public class AdminService {
 
     @Autowired
     private FolderRepository folderRepository;
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
 
     private final Logger LOGGER = LoggerFactory.getLogger(FileShareService.class);
 
@@ -75,7 +81,7 @@ public class AdminService {
         return file;
     }
 
-    public Object uploadFileAdmin(String currUsername, String folderId, MultipartFile file) throws Exception {
+    public FileData uploadFileAdmin(String currUsername, String folderId, MultipartFile file) throws Exception {
         // check if folder exists
         Optional<FolderData> tempFolder = folderRepository.findById(folderId);
         if (!tempFolder.isPresent()) {
@@ -106,7 +112,8 @@ public class AdminService {
         files.add(newFile.getId());
         folderObj.setFilesList(files);
         // Save the updated folder back to the database
-        return folderRepository.save(folderObj);
+        folderRepository.save(folderObj);
+        return newFile;
     }
 
     public String deleteFileAdmin(String fileId) throws Exception {
@@ -138,7 +145,7 @@ public class AdminService {
 
         // delete file data from files collection
         fileRepository.deleteById(fileId);
-        return fileName + " removed ...";
+        return fileName + " deleted successfully ...";
     }
 
     public void renameFileAdmin(String fileId, String newFileName) throws Exception {
@@ -168,35 +175,22 @@ public class AdminService {
         fileRepository.save(fileObj);
     }
 
-    public void createFolderAdmin(String managerId, String folderName) throws Exception {
+    public FolderData createFolderAdmin(String folderName) throws Exception {
         Optional<FolderData> nameCheck = folderRepository.findByFolderName(folderName);
         if (nameCheck.isPresent()) {
             throw new Exception("Folder Name already exists!!!");
         }
-        Optional<MyUser> tempManager = userRepository.findById(managerId);
-        if (!tempManager.isPresent()) {
-            throw new Exception("User not found!!!");
-        }
-        MyUser managerObj = tempManager.get();
 
-        if (!managerObj.getRole().equals("MANAGER")) {
-            throw new Exception("The given user is not a Manager!!!");
-        }
         // create folder in s3
         awsService.createFolderInS3(folderName);
 
         // save folder info in db
         FolderData newFolder = new FolderData();
         newFolder.setFolderName(folderName);
-        newFolder.setOwner(managerObj.getUsername());
+        newFolder.setOwner("Admin");
         newFolder.setFilesList(new HashSet<>());
         folderRepository.save(newFolder);
-
-        // add folder id in manager's folderList
-        Set<String> newFolderList = managerObj.getFolderList();
-        newFolderList.add(newFolder.getId());
-        managerObj.setFolderList(newFolderList);
-        userRepository.save(managerObj);
+        return newFolder;
     }
 
     public void renameFolderAdmin(String folderId, String newFolderName) throws Exception {
@@ -252,5 +246,61 @@ public class AdminService {
 
         // delete the folder from S3
         awsService.deleteFolderInS3(folderName);
+    }
+
+    public void assignFolderAdmin(String userId, String folderId) throws Exception {
+        Optional<MyUser> tempUser = userRepository.findById(userId);
+        if (!tempUser.isPresent()) {
+            throw new Exception("User not found!!!");
+        }
+        MyUser userObj = tempUser.get();
+        if (userObj.getRole().equals("ADMIN")) {
+            throw new Exception("Folder cannot be assigned to ADMIN!!!");
+        }
+        if (!folderRepository.findById(folderId).isPresent()) {
+            throw new Exception("Folder Not Found!!!");
+        }
+
+        // add folder id to user's folder list
+        Set<String> newFolderList = userObj.getFolderList();
+        newFolderList.add(folderId);
+        userObj.setFolderList(newFolderList);
+        userRepository.save(userObj);
+    }
+
+    public void unassignFolderAdmin(String userId, String folderId) throws Exception {
+        Optional<MyUser> tempUser = userRepository.findById(userId);
+        if (!tempUser.isPresent()) {
+            throw new Exception("User not found!!!");
+        }
+        MyUser userObj = tempUser.get();
+        if (userObj.getRole().equals("ADMIN")) {
+            throw new Exception("cannot unassign folders from ADMIN!!!");
+        }
+        if (!folderRepository.findById(folderId).isPresent()) {
+            throw new Exception("Folder Not Found!!!");
+        }
+
+        // remove folder id from the user's folder list
+        Set<String> newFolderList = userObj.getFolderList();
+        newFolderList.remove(folderId);
+        userObj.setFolderList(newFolderList);
+        userRepository.save(userObj);
+    }
+
+    public void addUser(MyUser userObj) throws Exception {
+        if (userRepository.findByUsername(userObj.getUsername()).isPresent()) {
+            throw new Exception("Username already taken. Please try again");
+        }
+        userObj.setPassword(passwordEncoder.encode(userObj.getPassword()));
+        userRepository.save(userObj);
+    }
+
+    public void removeUser(String userId) throws Exception {
+        Optional<MyUser> tempUser = userRepository.findById(userId);
+        if(!tempUser.isPresent()){
+            throw new Exception("User not Found!!!");
+        }
+        userRepository.deleteById(userId);
     }
 }

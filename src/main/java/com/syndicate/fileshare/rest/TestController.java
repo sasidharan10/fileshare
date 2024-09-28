@@ -3,7 +3,6 @@ package com.syndicate.fileshare.rest;
 
 import com.syndicate.fileshare.entity.FileData;
 import com.syndicate.fileshare.entity.FolderData;
-import com.syndicate.fileshare.entity.MyUser;
 import com.syndicate.fileshare.repository.FileRepository;
 import com.syndicate.fileshare.repository.FolderRepository;
 import com.syndicate.fileshare.repository.UserRepository;
@@ -16,30 +15,13 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-public class RegisterController {
-    @Autowired
-    private UserRepository userRepository;
+public class TestController {
     @Autowired
     private FolderRepository folderRepository;
     @Autowired
     private FileRepository fileRepository;
-    @Autowired
-    private PasswordEncoder passwordEncoder;
 
-    @PostMapping("/register/user")
-    public ResponseEntity registerUser(@RequestBody MyUser user){
-        try {
-            if (userRepository.findByUsername(user.getUsername()).isPresent())
-                return ResponseEntity.status(HttpStatus.CONFLICT).body("Username already taken. Please try again");
-            user.setPassword(passwordEncoder.encode(user.getPassword()));
-            MyUser save = userRepository.save(user);
-            return ResponseEntity.ok(HttpStatus.CREATED);
-        } catch (Exception e){
-            return ResponseEntity.internalServerError().body(e.getMessage());
-        }
-    }
-
-    @PostMapping("/register/folder")
+    @PostMapping("/test/folder")
     public ResponseEntity registerFolder(@RequestBody FolderData folderData){
         try {
             if (folderRepository.findByFolderName(folderData.getFolderName()).isPresent())
@@ -51,7 +33,7 @@ public class RegisterController {
         }
     }
 
-    @PostMapping("/register/file")
+    @PostMapping("/test/file")
     public ResponseEntity registerFile(@RequestBody FileData fileData){
         try {
             if (fileRepository.findByFileName(fileData.getFileName()).isPresent())

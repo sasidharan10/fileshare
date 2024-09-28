@@ -2,9 +2,15 @@ package com.syndicate.fileshare.rest;
 
 import com.syndicate.fileshare.entity.FileData;
 import com.syndicate.fileshare.entity.FolderData;
+import com.syndicate.fileshare.entity.MyUser;
+import com.syndicate.fileshare.repository.FileRepository;
+import com.syndicate.fileshare.repository.FolderRepository;
+import com.syndicate.fileshare.repository.UserRepository;
 import com.syndicate.fileshare.service.AwsService;
 import com.syndicate.fileshare.service.FileShareService;
 import com.syndicate.fileshare.service.MyUserDetailsService;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,6 +18,7 @@ import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -43,8 +50,8 @@ public class RestController {
     }
 
     @PreAuthorize("hasAnyRole('ROLE_MANAGER', 'ROLE_DESIGNER')")
-    @GetMapping("/folder/{folderId}/file")
-    public ResponseEntity<?> viewFilesInFolder(@PathVariable(value ="folderId") String folderId) {
+    @GetMapping("/folder/{folderId}/files")
+    public ResponseEntity<?> viewFilesInFolder(@PathVariable(value = "folderId") String folderId) {
         try {
             String currUsername = myUserDetailsService.getCurrentUser().getUsername();
             List<FileData> folderDataList = fileShareservice.getFilesByFolder(currUsername, folderId);
@@ -68,11 +75,12 @@ public class RestController {
 
     @PreAuthorize("hasAnyRole('ROLE_MANAGER', 'ROLE_DESIGNER')")
     @PostMapping("/file/upload")
-    public ResponseEntity<?> uploadFile(@RequestParam(value = "folderId") String folderId, @RequestParam(value = "file") MultipartFile file) {
+    public ResponseEntity<?> uploadFileInFolder(@RequestParam(value = "folderId") String folderId, @RequestParam(value = "file") MultipartFile file) {
         try {
             String currUsername = myUserDetailsService.getCurrentUser().getUsername();
-            return new ResponseEntity<>(fileShareservice.uploadFile(currUsername, folderId, file), HttpStatus.OK);
-        }catch (Exception e) {
+            FileData newFile = fileShareservice.uploadFileInFolder(currUsername, folderId, file);
+            return new ResponseEntity<>(newFile, HttpStatus.OK);
+        } catch (Exception e) {
             return new ResponseEntity(e.getMessage(), HttpStatus.BAD_REQUEST);
         }
     }
@@ -80,8 +88,7 @@ public class RestController {
     @PreAuthorize("hasAnyRole('ROLE_MANAGER', 'ROLE_DESIGNER')")
     @GetMapping("/download/file/{fileId}")
     public ResponseEntity<ByteArrayResource> downloadFile(@PathVariable String fileId) {
-        try
-        {
+        try {
             String currUsername = myUserDetailsService.getCurrentUser().getUsername();
             byte[] data = fileShareservice.downloadFile(currUsername, fileId);
             String fileName = fileShareservice.getFileNameById(fileId);
@@ -92,7 +99,7 @@ public class RestController {
                     .header("Content-type", "application/octet-stream")
                     .header("Content-disposition", "attachment; filename=\"" + fileName + "\"")
                     .body(resource);
-        }catch (Exception e) {
+        } catch (Exception e) {
             return new ResponseEntity(e.getMessage(), HttpStatus.BAD_REQUEST);
         }
     }
@@ -100,22 +107,23 @@ public class RestController {
     @PreAuthorize("hasRole('ROLE_MANAGER')")
     @DeleteMapping("/delete/file/{fileId}")
     public ResponseEntity<?> deleteFileById(@PathVariable String fileId) {
-        try{
+        try {
             String currUsername = myUserDetailsService.getCurrentUser().getUsername();
             String res = fileShareservice.deleteFileById(currUsername, fileId);
             return new ResponseEntity(res, HttpStatus.OK);
-        }catch (Exception e) {
+        } catch (Exception e) {
             return new ResponseEntity(e.getMessage(), HttpStatus.BAD_REQUEST);
         }
     }
 
     @PreAuthorize("hasRole('ROLE_MANAGER')")
     @PutMapping("/file/edit")
-    public ResponseEntity<?> renameFileById(@RequestParam String fileId, @RequestParam String newFileName) {
+    public ResponseEntity<?> renameFileById(@RequestParam String fileId, @RequestParam @Size(min = 2, max = 20, message = "File name must be between 2 and 20 characters")
+    @Pattern(regexp = "^[a-zA-Z0-9]+$", message = "Filename must be alphanumeric") String newFileName) {
         try {
             String currUsername = myUserDetailsService.getCurrentUser().getUsername();
             fileShareservice.renameFile(currUsername, fileId, newFileName);
-            return new ResponseEntity("File renamed successfully!", HttpStatus.OK);
+            return new ResponseEntity("File renamed to " + newFileName, HttpStatus.OK);
         } catch (Exception e) {
             return new ResponseEntity(e.getMessage(), HttpStatus.BAD_REQUEST);
         }
@@ -123,11 +131,12 @@ public class RestController {
 
     @PreAuthorize("hasRole('ROLE_MANAGER')")
     @PostMapping("/folder/create")
-    public ResponseEntity<?> createFolder(@RequestParam("folderName") String folderName) {
+    public ResponseEntity<?> createFolder(@RequestParam("folderName") @Size(min = 2, max = 20, message = "Folder name must be between 2 and 20 characters")
+                                              @Pattern(regexp = "^[a-zA-Z0-9]+$", message ="Folder name must be alphanumeric") String folderName) {
         try {
             String currUsername = myUserDetailsService.getCurrentUser().getUsername();
-            fileShareservice.createFolder(currUsername, folderName);
-            return new ResponseEntity("Folder " +folderName+"/ created successfully!", HttpStatus.OK);
+            FolderData newFolder = fileShareservice.createFolder(currUsername, folderName);
+            return new ResponseEntity(newFolder, HttpStatus.OK);
         } catch (Exception e) {
             return new ResponseEntity(e.getMessage(), HttpStatus.BAD_REQUEST);
         }
@@ -139,7 +148,7 @@ public class RestController {
         try {
             String currUsername = myUserDetailsService.getCurrentUser().getUsername();
             fileShareservice.renameFolder(currUsername, folderId, newFolderName);
-            return new ResponseEntity("Folder renamed successfully!", HttpStatus.OK);
+            return new ResponseEntity("Folder renamed to " + newFolderName, HttpStatus.OK);
         } catch (Exception e) {
             return new ResponseEntity(e.getMessage(), HttpStatus.BAD_REQUEST);
         }
@@ -152,6 +161,30 @@ public class RestController {
             String currUsername = myUserDetailsService.getCurrentUser().getUsername();
             fileShareservice.deleteFolder(currUsername, folderId);
             return new ResponseEntity<>("Folder Deleted successfully!", HttpStatus.OK);
+        } catch (Exception e) {
+            return new ResponseEntity(e.getMessage(), HttpStatus.BAD_REQUEST);
+        }
+    }
+
+    @PreAuthorize("hasRole('ROLE_MANAGER')")
+    @PutMapping("/folder/assign")
+    public ResponseEntity<?> assignFolder(@RequestParam String userId, @RequestParam String folderId) {
+        try {
+            String currUsername = myUserDetailsService.getCurrentUser().getUsername();
+            fileShareservice.assignFolder(currUsername, userId,  folderId);
+            return new ResponseEntity("Folder assigned to the Designer...", HttpStatus.OK);
+        } catch (Exception e) {
+            return new ResponseEntity(e.getMessage(), HttpStatus.BAD_REQUEST);
+        }
+    }
+
+    @PreAuthorize("hasRole('ROLE_MANAGER')")
+    @PutMapping("/folder/unassign")
+    public ResponseEntity<?> unassignFolderAdmin(@RequestParam String userId, @RequestParam String folderId) {
+        try {
+            String currUsername = myUserDetailsService.getCurrentUser().getUsername();
+            fileShareservice.unassignFolderAdmin(currUsername, userId,  folderId);
+            return new ResponseEntity("Folder Unassigned from the Designer...", HttpStatus.OK);
         } catch (Exception e) {
             return new ResponseEntity(e.getMessage(), HttpStatus.BAD_REQUEST);
         }

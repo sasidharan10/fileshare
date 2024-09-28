@@ -95,7 +95,7 @@ public class FileShareService {
         return fileDataList;
     }
 
-    public Object uploadFile(String currUsername, String folderId, MultipartFile file) throws Exception {
+    public FileData uploadFileInFolder(String currUsername, String folderId, MultipartFile file) throws Exception {
         Optional<MyUser> tempUser = userRepository.findByUsername(currUsername);
         if (!tempUser.isPresent()) {
             throw new Exception("User not found!!!");
@@ -131,7 +131,8 @@ public class FileShareService {
         files.add(newFile.getId());
         folderObj.setFilesList(files);
         // Save the updated folder back to the database
-        return folderRepository.save(folderObj);
+        folderRepository.save(folderObj);
+        return newFile;
     }
 
     public byte[] downloadFile(String currUsername, String fileId) throws Exception {
@@ -202,7 +203,7 @@ public class FileShareService {
 
         // delete file data from files collection
         fileRepository.deleteById(fileId);
-        return fileName + " removed ...";
+        return fileName + " deleted successfully ...";
     }
 
     public void renameFile(String currUsername, String fileId, String newFileName) throws Exception {
@@ -245,7 +246,7 @@ public class FileShareService {
         fileRepository.save(fileObj);
     }
 
-    public void createFolder(String currUsername, String folderName) throws Exception {
+    public FolderData createFolder(String currUsername, String folderName) throws Exception {
         // duplicate check
         Optional<FolderData> nameCheck = folderRepository.findByFolderName(folderName);
         if (nameCheck.isPresent()) {
@@ -272,6 +273,7 @@ public class FileShareService {
         newFolderList.add(newFolder.getId());
         managerObj.setFolderList(newFolderList);
         userRepository.save(managerObj);
+        return newFolder;
     }
 
     public void renameFolder(String currUsername, String folderId, String newFolderName) throws Exception {
@@ -351,5 +353,70 @@ public class FileShareService {
 
         // delete the folder from S3
         awsService.deleteFolderInS3(folderName);
+    }
+
+    public void assignFolder(String currManager, String userId, String folderId) throws Exception {
+        // check folder id is valid
+        if (!folderRepository.findById(folderId).isPresent()) {
+            throw new Exception("Folder Not Found!!!");
+        }
+        // check if manager has access to the folder
+        Optional<MyUser> tempManager = userRepository.findByUsername(currManager);
+        if (!tempManager.isPresent()) {
+            throw new Exception("Manager not found!!!");
+        }
+        MyUser managerObj = tempManager.get();
+        if(!managerObj.getFolderList().contains(folderId))
+        {
+            throw new Exception("Manager does not have access to this folder!!!");
+        }
+        // check if user is a designer
+        Optional<MyUser> tempUser = userRepository.findById(userId);
+        if (!tempUser.isPresent()) {
+            throw new Exception("User not found!!!");
+        }
+        MyUser userObj = tempUser.get();
+        if (!userObj.getRole().equals("DESIGNER")) {
+            throw new Exception("Manager can assign folders to only Designers!!!");
+        }
+
+        // add folder id to user's folder list
+        Set<String> newFolderList = userObj.getFolderList();
+        newFolderList.add(folderId);
+        userObj.setFolderList(newFolderList);
+        userRepository.save(userObj);
+    }
+
+    public void unassignFolderAdmin(String currManager, String userId, String folderId) throws Exception {
+        // check folder id is valid
+        if (!folderRepository.findById(folderId).isPresent()) {
+            throw new Exception("Folder Not Found!!!");
+        }
+        // check if manager has access to the folder
+        Optional<MyUser> tempManager = userRepository.findByUsername(currManager);
+        if (!tempManager.isPresent()) {
+            throw new Exception("Manager not found!!!");
+        }
+        MyUser managerObj = tempManager.get();
+        if(!managerObj.getFolderList().contains(folderId))
+        {
+            throw new Exception("Manager does not have access to this folder!!!");
+        }
+
+        // check if user is a designer
+        Optional<MyUser> tempUser = userRepository.findById(userId);
+        if (!tempUser.isPresent()) {
+            throw new Exception("User not found!!!");
+        }
+        MyUser userObj = tempUser.get();
+        if (!userObj.getRole().equals("DESIGNER")) {
+            throw new Exception("Manager can unassign folders to only Designers!!!");
+        }
+
+        // remove folder id to user's folder list
+        Set<String> newFolderList = userObj.getFolderList();
+        newFolderList.remove(folderId);
+        userObj.setFolderList(newFolderList);
+        userRepository.save(userObj);
     }
 }
