@@ -1,6 +1,6 @@
 # File Share App
 
-A file sharing application developed using Spring Boot and MongoDB. The application allows designers to upload their designs to the website. User roles determine the level of access and management capabilities for files and folders.
+A file sharing application developed using Spring Boot and MongoDB. The application allows users to upload and download files to the website. User roles determine the level of access and management capabilities for files and folders.
 
 # Technologies Used
 
